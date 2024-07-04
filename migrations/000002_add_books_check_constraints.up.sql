@@ -1,0 +1,1 @@
+ALTER TABLE books ADD CONSTRAINT types_length_check CHECK (array_length(types, 1)  BETWEEN 1 AND 3);
