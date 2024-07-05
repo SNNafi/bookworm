@@ -2,6 +2,7 @@ package data
 
 import (
 	"bookworm.snnafi.dev/internal/validator"
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/lib/pq"
@@ -91,10 +92,12 @@ func (repo BookRepository) Insert(book *Book) error {
 
 	query := `INSERT INTO books (name, author, publisher, image, cover_image, types) VALUES
               ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`
-
 	args := []any{book.Name, book.Author, book.Publisher, book.Image, book.CoverImage, pq.Array(book.Type)}
 
-	return repo.DB.QueryRow(query, args...).Scan(&book.ID, &book.CreatedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return repo.DB.QueryRowContext(ctx, query, args...).Scan(&book.ID, &book.CreatedAt)
 }
 
 func (repo BookRepository) Get(id int64) (*Book, error) {
@@ -107,7 +110,10 @@ func (repo BookRepository) Get(id int64) (*Book, error) {
 
 	var book Book
 
-	err := repo.DB.QueryRow(stmt, id).Scan(
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := repo.DB.QueryRowContext(ctx, stmt, id).Scan(
 		&book.ID,
 		&book.CreatedAt,
 		&book.Name,
@@ -132,7 +138,11 @@ func (repo BookRepository) Update(book *Book) error {
 
 	stmt := `UPDATE books SET name = $1, author = $2, publisher = $3, image = $4, cover_image = $5, types = $6 WHERE id = $7`
 	args := []any{book.Name, book.Author, book.Publisher, book.Image, book.CoverImage, pq.Array(book.Type), book.ID}
-	_, err := repo.DB.Exec(stmt, args...)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := repo.DB.ExecContext(ctx, stmt, args...)
 	return err
 }
 
@@ -140,7 +150,10 @@ func (repo BookRepository) Delete(id int64) error {
 
 	stmt := `DELETE FROM books WHERE id = $1`
 
-	result, err := repo.DB.Exec(stmt, id)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := repo.DB.ExecContext(ctx, stmt, id)
 	if err != nil {
 		return err
 	}
