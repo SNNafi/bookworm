@@ -8,6 +8,48 @@ import (
 	"net/http"
 )
 
+func (app *application) listBooksHandler(w http.ResponseWriter, r *http.Request) {
+
+	var input struct {
+		Name     string
+		BookType []data.BookType
+		data.Filters
+	}
+
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.Name = app.readString(qs, "name", "")
+
+	input.BookType = Map(app.readCSV(qs, "type", []string{}), data.NewBookTypeFromString)
+	input.BookType = Filter(input.BookType, func(bookType data.BookType) bool {
+		return bookType != 0
+	})
+
+	input.Page = app.readInt(qs, "page", 1, v)
+	input.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	input.SortBy = app.readString(qs, "sort", "id")
+	input.SortSafelist = []string{"id", "-id", "name", "-name", "author", "-author", "publisher", "-publisher"}
+
+	if input.ValidateFilters(v); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	books, metadata, err := app.repos.BookRepo.GetAll(input.Name, input.BookType, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"metadata": metadata, "books": books}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+
+}
+
 func (app *application) createBookHandler(w http.ResponseWriter, r *http.Request) {
 
 	var input struct {

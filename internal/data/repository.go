@@ -12,6 +12,7 @@ var (
 
 type Repositories struct {
 	BookRepo interface {
+		GetAll(name string, types []BookType, filters Filters) ([]*Book, MetaData, error)
 		Insert(book *Book) error
 		Get(id int64) (*Book, error)
 		Update(book *Book) error

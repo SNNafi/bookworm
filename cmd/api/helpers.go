@@ -1,17 +1,49 @@
 package main
 
 import (
+	"bookworm.snnafi.dev/internal/validator"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
 
 type envelope map[string]any
+
+func (app *application) readString(qs url.Values, key string, defaultValue string) string {
+	s := qs.Get(key)
+	if s == "" {
+		s = defaultValue
+	}
+	return s
+}
+
+func (app *application) readCSV(qs url.Values, key string, defaultValue []string) []string {
+	csv := qs.Get(key)
+	if csv == "" {
+		return defaultValue
+	}
+	return strings.Split(csv, ",")
+}
+
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+	s := qs.Get(key)
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		v.AddError(key, "must be an integer value")
+		return defaultValue
+	}
+	return i
+}
 
 func (app *application) readIDParam(r *http.Request) (int64, error) {
 	params := httprouter.ParamsFromContext(r.Context())
@@ -95,4 +127,20 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	}
 
 	return nil
+}
+
+func Filter[K any](k []K, f func(K) bool) (v []K) {
+	for _, e := range k {
+		if f(e) {
+			v = append(v, e)
+		}
+	}
+	return v
+}
+
+func Map[K any, V any](k []K, f func(K) V) (v []V) {
+	for _, e := range k {
+		v = append(v, f(e))
+	}
+	return v
 }
